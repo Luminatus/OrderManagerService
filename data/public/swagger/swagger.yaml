@@ -1,0 +1,247 @@
+openapi: 3.0.0
+info:
+  version: "1.0.0"
+  title: "OrderManager"
+servers:
+  - url: "http://localhost"
+paths:
+  /api/order/list:
+    post:
+      summary: "List orders matching the given parameters"
+      operationId: listOrders
+      tags:
+        - order
+      requestBody:
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                order_id:
+                  $ref: "#/components/schemas/OrderId"
+                status:
+                  type: string
+                  title: Status
+                  maxLength: 255
+                  enum:
+                    - new
+                    - completed
+                start_date:
+                  type: string
+                  format: date
+                  example: "2022-02-07 12:30:00"
+                end_date:
+                  type: string
+                  format: date
+                  example: "2022-02-08 19:00:00"
+      responses:
+        "200":
+          description: Returns a list containing the details of all matching orders
+          content:
+            application/json:
+              schema:
+                type: array
+                example:
+                  - order_id: "123456"
+                    buyer_name: "Kis Pista"
+                    status: "new"
+                    ordered_at: "2022-02-08 15:30:58"
+                    total: 5200
+                  - order_id: "87654321"
+                    buyer_name: "Nagy Bandi"
+                    status: "completed"
+                    ordered_at: "2022-02-07 12:21:00"
+                    total: 120000
+                items:
+                  type: object
+                  properties:
+                    order_id:
+                      $ref: "#/components/schemas/OrderId"
+                    buyer_name:
+                      type: string
+                    status:
+                      type: string
+                      enum:
+                        - new
+                        - completed
+                    ordered_at:
+                      type: string
+                      format: date
+                    total:
+                      type: integer
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ValidationErrors"
+                  - example:
+                      status:
+                        - The status field is required.
+                      start_date:
+                        - The start date must be a date before or equal to end date.
+  /api/order/create:
+    post:
+      summary: "Create a new order entry"
+      operationId: createOrder
+      tags:
+        - order
+      requestBody:
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                buyer_name:
+                  type: string
+                  title: Buyer name
+                  maxLength: 255
+                buyer_email:
+                  type: string
+                  title: Buyer email
+                  maxLength: 255
+                  format: email
+                delivery_type:
+                  type: string
+                  title: Delivery type
+                  maxLength: 255
+                  enum:
+                    - pick_up
+                    - delivery
+                billing_address:
+                  $ref: "#/components/schemas/AddressInput"
+                  title: Billing address
+                shipping_address:
+                  $ref: "#/components/schemas/AddressInput"
+                  title: Shipping address
+                ship_to_billing:
+                  type: boolean
+                  title: Shipping address is same as billing address
+                products:
+                  $ref: "#/components/schemas/ProductInput"
+              required:
+                - buyer_name
+                - buyer_email
+                - delivery_type
+                - billing_address
+              anyOf:
+                - properties:
+                    ship_to_billing:
+                      enum: [true]
+                - required:
+                    - shipping_address
+      responses:
+        "200":
+          description: Successful creation returns the created order's order ID
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  orderId:
+                    $ref: "#/components/schemas/OrderId"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ValidationErrors"
+                  - example:
+                      status:
+                        - The status field is required.
+
+  /api/order/update/{order_id}:
+    post:
+      summary: "Update the status of an order, identified by the order ID"
+      operationId: updateOrder
+      tags:
+        - order
+      parameters:
+        - name: order_id
+          required: true
+          in: path
+          schema:
+            $ref: "#/components/schemas/OrderId"
+
+      requestBody:
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  title: Status
+                  maxLength: 255
+                  enum:
+                    - new
+                    - completed
+              required:
+                - status
+      responses:
+        "200":
+          description: Successful update returns an 'Ok' string response
+          content:
+            application/json:
+              schema:
+                type: string
+                example: "Ok"
+        "422":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ValidationErrors"
+                  - example:
+                      order_id:
+                        - "Order not found"
+components:
+  schemas:
+    AddressInput:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+        address:
+          type: string
+          maxLength: 255
+        city:
+          type: string
+          maxLength: 255
+        zip:
+          type: string
+          maxLength: 4
+          minLength: 4
+          pattern: ^\d{4}$'
+          example: "1234"
+    ProductInput:
+      type: array
+      minimum: 1
+      items:
+        type: object
+        properties:
+          name:
+            type: string
+            maxLength: 255
+          quantity:
+            type: integer
+            minimum: 1
+            example: 3
+          price:
+            type: integer
+            minimum: 1
+            example: 10
+    ValidationErrors:
+      type: object
+      additionalProperties:
+        type: array
+        items:
+          type: string
+    OrderId:
+      type: string
+      pattern: ^\d+$
+      example: "12345678"
